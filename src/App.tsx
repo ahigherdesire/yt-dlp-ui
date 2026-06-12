@@ -125,7 +125,7 @@ function formatCodec(format: FormatOption) {
   return parts.join(" / ") || "audio";
 }
 
-function useJobEvents(onJob: (job: Job) => void) {
+function useJobEvents(onJob: (job: Job) => void, onRemove: (jobId: string) => void) {
   const streams = useRef<Map<string, EventSource>>(new Map());
 
   useEffect(() => {
@@ -146,8 +146,15 @@ function useJobEvents(onJob: (job: Job) => void) {
         streams.current.delete(job.id);
       }
     };
+    const handleRemoved = (event: MessageEvent) => {
+      const payload = JSON.parse(event.data) as { id: string };
+      onRemove(payload.id);
+      stream.close();
+      streams.current.delete(payload.id);
+    };
     stream.addEventListener("job", handle);
     stream.addEventListener("done", handle);
+    stream.addEventListener("removed", handleRemoved);
     stream.onerror = () => {
       stream.close();
       streams.current.delete(jobId);
@@ -184,7 +191,10 @@ export default function App() {
       return [job, ...next].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     });
   };
-  const subscribeJob = useJobEvents(upsertJob);
+  const removeJobFromState = (jobId: string) => {
+    setJobs((current) => current.filter((job) => job.id !== jobId));
+  };
+  const subscribeJob = useJobEvents(upsertJob, removeJobFromState);
 
   const videoFormats = useMemo(() => {
     return metadata?.formats.filter((format) => format.vcodec !== "none").slice(0, 50) || [];
@@ -332,6 +342,13 @@ export default function App() {
     if (response.ok) {
       const data = await response.json();
       upsertJob(data.job);
+    }
+  }
+
+  async function removeJob(jobId: string) {
+    const response = await fetch(apiUrl(`/api/jobs/${jobId}`), { method: "DELETE" });
+    if (response.ok || response.status === 404) {
+      removeJobFromState(jobId);
     }
   }
 
@@ -645,8 +662,13 @@ export default function App() {
                 <span>No downloads yet.</span>
               </div>
             )}
-            {jobs.map((job) => (
-              <article className="job-card" key={job.id}>
+            {jobs.map((job) => {
+              const isFinished = ["complete", "failed", "cancelled"].includes(job.status);
+              const isComplete = job.status === "complete";
+              const resultLabel = isComplete ? "Complete" : job.status === "cancelled" ? "Cancelled" : "Failed";
+
+              return (
+              <article className={`job-card ${isFinished ? "finished" : ""}`} key={job.id}>
                 <div className="job-main">
                   <div className={`status-dot ${job.status}`} />
                   <div>
@@ -656,18 +678,35 @@ export default function App() {
                     </p>
                   </div>
                 </div>
-                <div className="job-progress">
-                  <div className="bar">
-                    <span style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} />
+
+                {isFinished ? (
+                  <div className={`job-result ${isComplete ? "complete" : "failed"}`} role="status">
+                    <span className="result-symbol" aria-hidden="true" />
+                    <div>
+                      <strong>{resultLabel}</strong>
+                      <small>{isComplete ? "Saved to folder" : "Stopped"}</small>
+                    </div>
                   </div>
-                  <small>
-                    {job.status} {job.progress ? `${Math.round(job.progress)}%` : ""} {job.speed} {job.eta ? `ETA ${job.eta}` : ""}
-                  </small>
-                </div>
+                ) : (
+                  <div className="job-progress">
+                    <div className="bar">
+                      <span style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} />
+                    </div>
+                    <small>
+                      {job.status} {job.progress ? `${Math.round(job.progress)}%` : ""} {job.speed} {job.eta ? `ETA ${job.eta}` : ""}
+                    </small>
+                  </div>
+                )}
+
                 <div className="job-actions">
                   {job.status === "running" && (
                     <button className="icon-button" onClick={() => cancelJob(job.id)} title="Cancel" type="button">
                       <Square size={16} />
+                    </button>
+                  )}
+                  {isFinished && (
+                    <button className="icon-button remove-button" onClick={() => removeJob(job.id)} title="Remove from queue" type="button">
+                      <span className="remove-mark" aria-hidden="true" />
                     </button>
                   )}
                   <button className="icon-button" onClick={() => openFolder(job.outputDir)} title="Open folder" type="button">
@@ -676,7 +715,8 @@ export default function App() {
                 </div>
                 {job.error && <pre className="job-error">{job.error}</pre>}
               </article>
-            ))}
+              );
+            })}
           </div>
         </section>
 

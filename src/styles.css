@@ -682,9 +682,140 @@ select:focus {
   white-space: nowrap;
 }
 
+.job-result {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: #f7faf9;
+}
+
+.job-result.complete {
+  color: #0f5132;
+  background: #edf8f1;
+}
+
+.job-result.failed {
+  color: #7f1d1d;
+  background: #fff1f1;
+}
+
+.job-result strong,
+.job-result small {
+  display: block;
+}
+
+.job-result strong {
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.job-result small {
+  margin-top: 3px;
+  color: currentColor;
+  opacity: 0.72;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.result-symbol {
+  position: relative;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  transform-origin: center;
+  animation: result-pop 520ms cubic-bezier(0.2, 1.45, 0.34, 1) both;
+}
+
+.job-result.complete .result-symbol {
+  background: var(--green);
+  box-shadow: 0 10px 24px rgba(23, 114, 69, 0.26);
+}
+
+.job-result.complete .result-symbol::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 9px;
+  width: 11px;
+  height: 18px;
+  border: solid #ffffff;
+  border-width: 0 4px 4px 0;
+  transform: rotate(45deg);
+}
+
+.job-result.failed .result-symbol {
+  background: var(--red);
+  box-shadow: 0 10px 24px rgba(194, 65, 58, 0.25);
+}
+
+.job-result.failed .result-symbol::before,
+.job-result.failed .result-symbol::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  top: 17px;
+  width: 18px;
+  height: 4px;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.job-result.failed .result-symbol::before {
+  transform: rotate(45deg);
+}
+
+.job-result.failed .result-symbol::after {
+  transform: rotate(-45deg);
+}
+
 .job-actions {
   display: flex;
   gap: 6px;
+}
+
+.remove-button {
+  position: relative;
+}
+
+.remove-mark,
+.remove-mark::before,
+.remove-mark::after {
+  display: block;
+}
+
+.remove-mark {
+  position: relative;
+  width: 16px;
+  height: 16px;
+}
+
+.remove-mark::before,
+.remove-mark::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 7px;
+  width: 14px;
+  height: 2px;
+  border-radius: 999px;
+  background: #596273;
+}
+
+.remove-mark::before {
+  transform: rotate(45deg);
+}
+
+.remove-mark::after {
+  transform: rotate(-45deg);
+}
+
+.remove-button:hover .remove-mark::before,
+.remove-button:hover .remove-mark::after {
+  background: var(--red);
 }
 
 .job-error {
@@ -747,6 +878,23 @@ code {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes result-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.35);
+  }
+
+  58% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

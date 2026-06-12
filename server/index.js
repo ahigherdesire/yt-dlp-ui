@@ -552,6 +552,30 @@ app.post("/api/jobs/:id/cancel", (req, res) => {
   res.json({ job: publicJob(job) });
 });
 
+app.delete("/api/jobs/:id", (req, res) => {
+  const job = jobs.get(req.params.id);
+  if (!job) {
+    res.status(404).json({ error: "Job not found." });
+    return;
+  }
+
+  if (job.proc && ["queued", "running"].includes(job.status)) {
+    updateJob(job, { status: "cancelled", eta: "" }, "done");
+    job.proc.kill("SIGTERM");
+  }
+
+  cleanupTempDir(job);
+  jobs.delete(job.id);
+  for (const client of job.clients) {
+    client.write("event: removed\n");
+    client.write(`data: ${JSON.stringify({ id: job.id })}\n\n`);
+    client.end();
+  }
+  job.clients.clear();
+
+  res.json({ ok: true, id: job.id });
+});
+
 app.get("/api/extension.zip", (_req, res) => {
   try {
     const archive = buildZipFromDirectory(extensionDir);

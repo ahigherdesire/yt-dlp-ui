@@ -1,7 +1,6 @@
 import {
   AlertCircle,
   BadgeCheck,
-  Chrome,
   Clock3,
   Download,
   ExternalLink,
@@ -15,6 +14,7 @@ import {
   Music2,
   PauseCircle,
   Play,
+  Puzzle,
   RefreshCw,
   Scissors,
   Settings2,
@@ -294,7 +294,7 @@ export default function App() {
             <ListVideo size={17} /> Queue
           </a>
           <a className="nav-item" href="#extension">
-            <Chrome size={17} /> Extension
+            <Puzzle size={17} /> Extension
           </a>
         </nav>
 
@@ -316,7 +316,7 @@ export default function App() {
             <h1>Download, clip, and convert media.</h1>
           </div>
           <a className="extension-link" href="#extension">
-            <Chrome size={17} /> Chrome extension
+            <Puzzle size={17} /> Chrome extension
           </a>
         </header>
 
@@ -587,7 +587,7 @@ export default function App() {
             <p>Load the `extension` folder in Chrome and send the current tab straight into this queue.</p>
           </div>
           <div className="extension-path">
-            <Chrome size={20} />
+            <Puzzle size={20} />
             <code>extension/</code>
           </div>
         </section>
@@ -595,4 +595,3 @@ export default function App() {
     </div>
   );
 }
-

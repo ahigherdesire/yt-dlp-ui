@@ -410,7 +410,12 @@ app.post("/api/open-folder", (req, res) => {
 const distDir = path.resolve(__dirname, "..", "dist");
 if (fs.existsSync(distDir)) {
   app.use(express.static(distDir));
-  app.get("*", (_req, res) => {
+  app.use((req, res, next) => {
+    if (req.method !== "GET") {
+      next();
+      return;
+    }
+
     res.sendFile(path.join(distDir, "index.html"));
   });
 }
@@ -418,4 +423,3 @@ if (fs.existsSync(distDir)) {
 app.listen(port, "127.0.0.1", () => {
   console.log(`YDL Studio API listening on http://127.0.0.1:${port}`);
 });
-

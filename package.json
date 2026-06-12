@@ -8,6 +8,12 @@
     "build": "tsc --noEmit && vite build",
     "start": "node server/index.js",
     "preview": "npm run build && node server/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "lucide-react": "^1.18.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
   }
 }
-

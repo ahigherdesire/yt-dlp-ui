@@ -334,10 +334,11 @@ app.get("/api/jobs", (_req, res) => {
 });
 
 app.post("/api/download", (req, res) => {
+  let tempDir = "";
   try {
     const url = validateMediaUrl(req.body.url);
     const outputDir = normalizeOutputDir(req.body.outputDir);
-    const tempDir = path.join(tempRootDir, randomUUID());
+    tempDir = path.join(tempRootDir, randomUUID());
     fs.mkdirSync(tempDir, { recursive: true });
     const args = buildDownloadArgs({ ...req.body, url }, outputDir, tempDir);
     const job = createJob({
@@ -386,6 +387,9 @@ app.post("/api/download", (req, res) => {
 
     res.status(202).json({ job: publicJob(job) });
   } catch (error) {
+    if (tempDir) {
+      fs.rm(tempDir, { recursive: true, force: true }, () => undefined);
+    }
     res.status(400).json({ error: error.message || "Could not start this download." });
   }
 });

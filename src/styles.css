@@ -344,7 +344,7 @@ select:focus {
 
 .preset-grid {
   display: grid;
-  grid-template-columns: repeat(7, minmax(86px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
   gap: 9px;
   margin-bottom: 18px;
 }
@@ -387,7 +387,7 @@ select:focus {
 .split-controls,
 .range-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -633,16 +633,6 @@ code {
   }
 }
 
-@media (max-width: 1180px) {
-  .preset-grid {
-    grid-template-columns: repeat(4, minmax(92px, 1fr));
-  }
-
-  .split-controls {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 940px) {
   .app-shell {
     display: block;
@@ -709,4 +699,3 @@ code {
     display: grid;
   }
 }
-

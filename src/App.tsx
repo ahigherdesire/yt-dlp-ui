@@ -12,7 +12,6 @@ import {
   Loader2,
   ListVideo,
   Music2,
-  PauseCircle,
   Play,
   Puzzle,
   RefreshCw,
@@ -511,7 +510,7 @@ export default function App() {
             </div>
             <div className="metadata-stack">
               <p className="eyebrow">{metadata?.extractor || "Ready"}</p>
-              <h2>{metadata?.title || "Paste a URL to inspect formats"}</h2>
+              <h2>{metadata?.title || "Awaiting media"}</h2>
               <div className="meta-row">
                 <span>{metadata?.channel || "Local yt-dlp service"}</span>
                 <span>
@@ -584,7 +583,6 @@ export default function App() {
           <div>
             <p className="eyebrow">Browser capture</p>
             <h2>Chrome extension included</h2>
-            <p>Load the `extension` folder in Chrome and send the current tab straight into this queue.</p>
           </div>
           <div className="extension-path">
             <Puzzle size={20} />

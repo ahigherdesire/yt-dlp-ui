@@ -325,9 +325,10 @@ function addLog(job, rawLine) {
 
   const progressMatch = line.match(/\[download\]\s+([\d.]+)%.*?(?:at\s+([^\s]+\/s))?.*?(?:ETA\s+([^\s]+))?/);
   if (progressMatch) {
+    const reportedProgress = Math.min(100, Number(progressMatch[1]));
     updateJob(job, {
       status: "running",
-      progress: Math.min(100, Number(progressMatch[1])),
+      progress: Math.max(job.progress || 0, reportedProgress),
       speed: progressMatch[2] || job.speed,
       eta: progressMatch[3] || job.eta
     });

@@ -134,7 +134,7 @@ a {
 .nav-item.active {
   color: var(--teal-dark);
   background: #e8f4f2;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .system-panel {
@@ -170,7 +170,7 @@ a {
   margin: 0 0 5px;
   color: var(--teal);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0;
 }
 
@@ -186,21 +186,21 @@ h1 {
   font-size: clamp(26px, 3.5vw, 40px);
   line-height: 1.12;
   letter-spacing: 0;
-  font-weight: 650;
+  font-weight: 600;
 }
 
 h2 {
   font-size: 20px;
   margin-bottom: 0;
   letter-spacing: 0;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 h3 {
   font-size: 15px;
   margin-bottom: 4px;
   letter-spacing: 0;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .content-grid {
@@ -284,7 +284,7 @@ select:focus {
   border: 1px solid var(--teal-dark);
   background: var(--teal);
   color: #ffffff;
-  font-weight: 600;
+  font-weight: 500;
   padding: 0 15px;
 }
 
@@ -366,7 +366,7 @@ select:focus {
 }
 
 .preset-button span {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .preset-button small {
@@ -473,14 +473,14 @@ select:focus {
   padding: 0 7px;
   color: var(--teal-dark);
   background: #e8f4f2;
-  font-weight: 650;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .format-main {
   min-width: 0;
-  font-weight: 600;
+  font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -563,7 +563,7 @@ select:focus {
   align-content: center;
   gap: 10px;
   color: #ffffff;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .metadata-stack {
@@ -627,6 +627,10 @@ select:focus {
   gap: 10px;
 }
 
+.job-main > div {
+  min-width: 0;
+}
+
 .job-main h3,
 .job-main p {
   overflow: hidden;
@@ -680,9 +684,27 @@ select:focus {
   transition: width 160ms ease;
 }
 
-.job-progress small {
+.progress-meta {
+  min-height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+}
+
+.progress-meta small {
   color: var(--muted);
   white-space: nowrap;
+}
+
+.loading-ring {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d7dee4;
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  flex: 0 0 auto;
+  animation: spin 760ms linear infinite;
 }
 
 .job-result {

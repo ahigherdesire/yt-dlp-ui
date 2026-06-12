@@ -189,8 +189,12 @@ export default function App() {
 
   const upsertJob = (job: Job) => {
     setJobs((current) => {
+      const existing = current.find((item) => item.id === job.id);
+      const mergedJob = existing
+        ? { ...job, progress: job.status === "complete" ? 100 : Math.max(existing.progress || 0, job.progress || 0) }
+        : job;
       const next = current.filter((item) => item.id !== job.id);
-      return [job, ...next].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      return [mergedJob, ...next].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     });
   };
   const removeJobFromState = (jobId: string) => {
@@ -696,9 +700,12 @@ export default function App() {
                     <div className="bar">
                       <span style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} />
                     </div>
-                    <small>
-                      {job.status} {job.progress ? `${Math.round(job.progress)}%` : ""} {job.speed} {job.eta ? `ETA ${job.eta}` : ""}
-                    </small>
+                    <div className="progress-meta">
+                      <span className="loading-ring" aria-hidden="true" />
+                      <small>
+                        {job.status} {job.progress ? `${Math.round(job.progress)}%` : ""} {job.speed} {job.eta ? `ETA ${job.eta}` : ""}
+                      </small>
+                    </div>
                   </div>
                 )}
 

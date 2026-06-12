@@ -272,6 +272,10 @@ export default function App() {
     });
   }
 
+  async function openExtensionFolder() {
+    await fetch(apiUrl("/api/open-extension-folder"), { method: "POST" });
+  }
+
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Workspace">
@@ -314,9 +318,9 @@ export default function App() {
             <p className="eyebrow">Local capture console</p>
             <h1>Download, clip, and convert media.</h1>
           </div>
-          <a className="extension-link" href="#extension">
+          <button className="extension-link" onClick={openExtensionFolder} type="button">
             <Puzzle size={17} /> Chrome extension
-          </a>
+          </button>
         </header>
 
         {error && (
@@ -587,6 +591,9 @@ export default function App() {
           <div className="extension-path">
             <Puzzle size={20} />
             <code>extension/</code>
+            <button className="secondary-button" onClick={openExtensionFolder} type="button">
+              <FolderOpen size={17} /> Open folder
+            </button>
           </div>
         </section>
       </main>

@@ -14,6 +14,7 @@ const app = express();
 const port = Number(process.env.PORT || 5179);
 const ytdlpBin = process.env.YTDLP_PATH || "yt-dlp";
 const defaultOutputDir = path.join(os.homedir(), "Downloads", "yt-dlp-ui");
+const extensionDir = path.resolve(__dirname, "..", "extension");
 const jobs = new Map();
 
 fs.mkdirSync(defaultOutputDir, { recursive: true });
@@ -404,6 +405,20 @@ app.post("/api/open-folder", (req, res) => {
     res.json({ ok: true, outputDir: targetDir });
   } catch (error) {
     res.status(400).json({ error: error.message || "Could not open this folder." });
+  }
+});
+
+app.post("/api/open-extension-folder", (_req, res) => {
+  try {
+    const explorer = spawn("explorer.exe", [extensionDir], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: true
+    });
+    explorer.unref();
+    res.json({ ok: true, extensionDir });
+  } catch (error) {
+    res.status(400).json({ error: error.message || "Could not open the extension folder." });
   }
 });
 

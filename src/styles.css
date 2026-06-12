@@ -2,7 +2,7 @@
   color: #111827;
   background: #f6f7f9;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Inter", "Geist", "Aptos", "Segoe UI Variable", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   --bg: #f6f7f9;
@@ -82,6 +82,7 @@ a {
 .brand-row strong {
   display: block;
   font-size: 17px;
+  font-weight: 600;
 }
 
 .brand-row span,
@@ -133,7 +134,7 @@ a {
 .nav-item.active {
   color: var(--teal-dark);
   background: #e8f4f2;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .system-panel {
@@ -168,9 +169,8 @@ a {
 .eyebrow {
   margin: 0 0 5px;
   color: var(--teal);
-  text-transform: uppercase;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 600;
   letter-spacing: 0;
 }
 
@@ -183,21 +183,24 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-size: clamp(28px, 4vw, 44px);
-  line-height: 1.05;
+  font-size: clamp(26px, 3.5vw, 40px);
+  line-height: 1.12;
   letter-spacing: 0;
+  font-weight: 650;
 }
 
 h2 {
   font-size: 20px;
   margin-bottom: 0;
   letter-spacing: 0;
+  font-weight: 600;
 }
 
 h3 {
   font-size: 15px;
   margin-bottom: 4px;
   letter-spacing: 0;
+  font-weight: 600;
 }
 
 .content-grid {
@@ -232,7 +235,7 @@ label,
 .field-block {
   color: #344054;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .url-row,
@@ -281,7 +284,7 @@ select:focus {
   border: 1px solid var(--teal-dark);
   background: var(--teal);
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 600;
   padding: 0 15px;
 }
 
@@ -296,7 +299,7 @@ select:focus {
   border: 1px solid var(--line);
   background: #ffffff;
   color: #253041;
-  font-weight: 700;
+  font-weight: 500;
   padding: 0 13px;
 }
 
@@ -325,7 +328,7 @@ select:focus {
   gap: 10px;
   border-radius: var(--radius);
   padding: 10px 12px;
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .notice.error {
@@ -363,7 +366,7 @@ select:focus {
 }
 
 .preset-button span {
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .preset-button small {
@@ -396,7 +399,7 @@ select:focus {
   margin-bottom: 8px;
   color: #344054;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .inline-status {
@@ -410,7 +413,7 @@ select:focus {
   color: var(--muted);
   background: #ffffff;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .selected-format {
@@ -470,14 +473,14 @@ select:focus {
   padding: 0 7px;
   color: var(--teal-dark);
   background: #e8f4f2;
-  font-weight: 900;
+  font-weight: 650;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .format-main {
   min-width: 0;
-  font-weight: 900;
+  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -560,7 +563,7 @@ select:focus {
   align-content: center;
   gap: 10px;
   color: #ffffff;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .metadata-stack {
@@ -594,7 +597,7 @@ select:focus {
   gap: 5px;
   margin-top: 14px;
   color: var(--blue);
-  font-weight: 800;
+  font-weight: 500;
 }
 
 .queue-section {

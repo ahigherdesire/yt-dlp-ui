@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YDL Studio Capture</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="mark">Y</div>
+        <div>
+          <strong>YDL Studio</strong>
+          <span id="serviceState">Checking service...</span>
+        </div>
+      </header>
+
+      <label>
+        Current tab
+        <input id="url" readonly />
+      </label>
+
+      <section class="grid" aria-label="Format">
+        <button class="preset selected" data-preset="mp4" type="button">MP4</button>
+        <button class="preset" data-preset="mp3" type="button">MP3</button>
+        <button class="preset" data-preset="m4a" type="button">M4A</button>
+        <button class="preset" data-preset="best" type="button">Best</button>
+      </section>
+
+      <label class="check">
+        <input id="rangeEnabled" type="checkbox" />
+        Download section
+      </label>
+
+      <section class="range">
+        <label>
+          Start
+          <input id="rangeStart" placeholder="00:45" />
+        </label>
+        <label>
+          End
+          <input id="rangeEnd" placeholder="02:10" />
+        </label>
+      </section>
+
+      <label class="check">
+        <input id="includeSubtitles" type="checkbox" />
+        Include subtitles
+      </label>
+
+      <button id="download" class="primary" type="button">Download current tab</button>
+      <button id="openApp" class="secondary" type="button">Open app</button>
+
+      <p id="message" role="status"></p>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
+

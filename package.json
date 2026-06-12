@@ -1,0 +1,13 @@
+{
+  "name": "yt-dlp-ui",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c cyan,green \"node server/index.js\" \"vite --host 127.0.0.1\"",
+    "build": "tsc --noEmit && vite build",
+    "start": "node server/index.js",
+    "preview": "npm run build && node server/index.js"
+  }
+}
+

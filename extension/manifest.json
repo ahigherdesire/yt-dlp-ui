@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "YDL Studio Capture",
+  "description": "Send the current tab to the local YDL Studio downloader.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "Download with YDL Studio",
+    "default_popup": "popup.html"
+  },
+  "permissions": ["activeTab", "storage", "tabs"],
+  "host_permissions": ["http://127.0.0.1:5179/*", "http://localhost:5179/*"]
+}
+

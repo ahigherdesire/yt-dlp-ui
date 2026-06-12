@@ -15,9 +15,11 @@ const port = Number(process.env.PORT || 5179);
 const ytdlpBin = process.env.YTDLP_PATH || "yt-dlp";
 const defaultOutputDir = path.join(os.homedir(), "Downloads", "yt-dlp-ui");
 const extensionDir = path.resolve(__dirname, "..", "extension");
+const tempRootDir = path.join(os.tmpdir(), "yt-dlp-ui");
 const jobs = new Map();
 
 fs.mkdirSync(defaultOutputDir, { recursive: true });
+fs.mkdirSync(tempRootDir, { recursive: true });
 
 app.use(
   cors({
@@ -144,6 +146,7 @@ function createJob(payload) {
     url: payload.url,
     preset: payload.preset,
     outputDir: payload.outputDir,
+    tempDir: payload.tempDir,
     outputPath: "",
     error: "",
     logs: [],
@@ -173,6 +176,14 @@ function publicJob(job) {
     createdAt: job.createdAt,
     updatedAt: job.updatedAt
   };
+}
+
+function cleanupTempDir(job) {
+  if (!job.tempDir || !path.resolve(job.tempDir).startsWith(path.resolve(tempRootDir))) {
+    return;
+  }
+
+  fs.rm(job.tempDir, { recursive: true, force: true }, () => undefined);
 }
 
 function emitJob(job, event = "job") {
@@ -231,9 +242,24 @@ function parseTimestamp(value) {
   return trimmed;
 }
 
-function buildDownloadArgs(body, outputDir) {
+function buildDownloadArgs(body, outputDir, tempDir) {
   const preset = body.preset || "mp4";
-  const args = ["--newline", "--no-color", "-P", outputDir, "-o", "%(title).180B [%(id)s].%(ext)s"];
+  const args = [
+    "--newline",
+    "--no-color",
+    "--retries",
+    "10",
+    "--fragment-retries",
+    "10",
+    "--file-access-retries",
+    "10",
+    "-P",
+    outputDir,
+    "-P",
+    `temp:${tempDir}`,
+    "-o",
+    "%(title).180B [%(id)s].%(ext)s"
+  ];
 
   if (body.playlistMode === "playlist") {
     args.push("--yes-playlist");
@@ -311,12 +337,15 @@ app.post("/api/download", (req, res) => {
   try {
     const url = validateMediaUrl(req.body.url);
     const outputDir = normalizeOutputDir(req.body.outputDir);
-    const args = buildDownloadArgs({ ...req.body, url }, outputDir);
+    const tempDir = path.join(tempRootDir, randomUUID());
+    fs.mkdirSync(tempDir, { recursive: true });
+    const args = buildDownloadArgs({ ...req.body, url }, outputDir, tempDir);
     const job = createJob({
       url,
       title: req.body.title,
       preset: req.body.preset || "mp4",
-      outputDir
+      outputDir,
+      tempDir
     });
 
     updateJob(job, { status: "running" });
@@ -337,15 +366,18 @@ app.post("/api/download", (req, res) => {
     child.on("close", (code) => {
       job.proc = null;
       if (job.status === "cancelled") {
+        cleanupTempDir(job);
         emitJob(job, "done");
         return;
       }
 
       if (code === 0) {
+        cleanupTempDir(job);
         updateJob(job, { status: "complete", progress: 100, eta: "" }, "done");
         return;
       }
 
+      cleanupTempDir(job);
       updateJob(job, {
         status: "failed",
         error: job.logs.slice(-8).join("\n") || `yt-dlp exited with code ${code}`

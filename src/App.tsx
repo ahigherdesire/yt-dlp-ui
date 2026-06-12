@@ -22,7 +22,7 @@ import {
   Subtitles,
   Zap
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type FormatOption = {
   id: string;
@@ -109,6 +109,22 @@ function formatBytes(bytes: number | null) {
   return `${value.toFixed(value > 100 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+function getValidMediaUrl(value: string) {
+  try {
+    const parsed = new URL(value.trim());
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function formatCodec(format: FormatOption) {
+  const parts = [];
+  if (format.vcodec && format.vcodec !== "none") parts.push(format.vcodec);
+  if (format.acodec && format.acodec !== "none") parts.push(format.acodec);
+  return parts.join(" / ") || "audio";
+}
+
 function useJobEvents(onJob: (job: Job) => void) {
   const streams = useRef<Map<string, EventSource>>(new Map());
 
@@ -159,6 +175,8 @@ export default function App() {
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
+  const inspectRequestRef = useRef(0);
+  const lastInspectedUrlRef = useRef("");
 
   const upsertJob = (job: Job) => {
     setJobs((current) => {
@@ -167,6 +185,58 @@ export default function App() {
     });
   };
   const subscribeJob = useJobEvents(upsertJob);
+
+  const videoFormats = useMemo(() => {
+    return metadata?.formats.filter((format) => format.vcodec !== "none").slice(0, 50) || [];
+  }, [metadata]);
+
+  const audioFormats = useMemo(() => {
+    return metadata?.formats.filter((format) => format.vcodec === "none").slice(0, 24) || [];
+  }, [metadata]);
+
+  const customFormats = useMemo(() => metadata?.formats || [], [metadata]);
+  const selectedFormat = useMemo(
+    () => customFormats.find((format) => format.id === formatId) || null,
+    [customFormats, formatId]
+  );
+
+  const inspectUrl = useCallback(async (targetUrl: string, options: { silent?: boolean } = {}) => {
+    const normalizedUrl = getValidMediaUrl(targetUrl);
+    if (!normalizedUrl) {
+      if (!options.silent) setError("Enter a valid media URL.");
+      return;
+    }
+
+    const requestId = inspectRequestRef.current + 1;
+    inspectRequestRef.current = requestId;
+    setError("");
+    setIsInspecting(true);
+    setMetadata(null);
+    setFormatId("");
+
+    try {
+      const response = await fetch(apiUrl("/api/metadata"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: normalizedUrl })
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not inspect this URL.");
+      if (inspectRequestRef.current !== requestId) return;
+
+      setMetadata(data.metadata);
+      setFormatId(data.metadata.formats?.[0]?.id || "");
+      lastInspectedUrlRef.current = normalizedUrl;
+    } catch (caught) {
+      if (inspectRequestRef.current === requestId && !options.silent) {
+        setError(caught instanceof Error ? caught.message : "Could not inspect this URL.");
+      }
+    } finally {
+      if (inspectRequestRef.current === requestId) {
+        setIsInspecting(false);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -190,34 +260,35 @@ export default function App() {
       .catch(() => undefined);
   }, []);
 
-  const videoFormats = useMemo(() => {
-    return metadata?.formats.filter((format) => format.vcodec !== "none").slice(0, 50) || [];
-  }, [metadata]);
-
-  const audioFormats = useMemo(() => {
-    return metadata?.formats.filter((format) => format.vcodec === "none").slice(0, 24) || [];
-  }, [metadata]);
-
-  async function inspect(event?: FormEvent) {
-    event?.preventDefault();
-    setError("");
-    setIsInspecting(true);
-    setMetadata(null);
-
-    try {
-      const response = await fetch(apiUrl("/api/metadata"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url })
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Could not inspect this URL.");
-      setMetadata(data.metadata);
-      setFormatId(data.metadata.formats?.[0]?.id || "");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Could not inspect this URL.");
-    } finally {
+  useEffect(() => {
+    const normalizedUrl = getValidMediaUrl(url);
+    if (!normalizedUrl) {
+      inspectRequestRef.current += 1;
+      lastInspectedUrlRef.current = "";
+      setMetadata(null);
+      setFormatId("");
       setIsInspecting(false);
+      return;
+    }
+
+    if (normalizedUrl === lastInspectedUrlRef.current) return;
+
+    const timer = window.setTimeout(() => {
+      void inspectUrl(normalizedUrl, { silent: true });
+    }, 800);
+
+    return () => window.clearTimeout(timer);
+  }, [url, inspectUrl]);
+
+  function inspect(event: FormEvent) {
+    event.preventDefault();
+    void inspectUrl(url);
+  }
+
+  function selectPreset(nextPreset: string) {
+    setPreset(nextPreset);
+    if (nextPreset === "custom" && !metadata && !isInspecting) {
+      void inspectUrl(url);
     }
   }
 
@@ -365,7 +436,7 @@ export default function App() {
                   <button
                     className={`preset-button ${preset === item.id ? "selected" : ""}`}
                     key={item.id}
-                    onClick={() => setPreset(item.id)}
+                    onClick={() => selectPreset(item.id)}
                     type="button"
                   >
                     <Icon size={19} />
@@ -377,26 +448,52 @@ export default function App() {
             </div>
 
             {preset === "custom" && (
-              <label className="field-block">
-                Format ID
-                <select value={formatId} onChange={(event) => setFormatId(event.target.value)}>
-                  <option value="">Pick a format</option>
-                  <optgroup label="Video">
-                    {videoFormats.map((format) => (
-                      <option key={format.id} value={format.id}>
-                        {format.id} - {format.resolution} {format.ext} {formatBytes(format.filesize)}
-                      </option>
-                    ))}
-                  </optgroup>
-                  <optgroup label="Audio">
-                    {audioFormats.map((format) => (
-                      <option key={format.id} value={format.id}>
-                        {format.id} - {format.ext} {format.tbr ? `${Math.round(format.tbr)}kbps` : ""}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </label>
+              <div className="format-block">
+                <div className="field-row">
+                  <span>Format ID</span>
+                  {isInspecting && (
+                    <span className="inline-status">
+                      <Loader2 className="spin" size={14} /> Loading
+                    </span>
+                  )}
+                  {selectedFormat && (
+                    <span className="inline-status selected-format">
+                      {selectedFormat.id} - {selectedFormat.resolution}
+                    </span>
+                  )}
+                </div>
+                <div className="format-picker" role="listbox" aria-label="Format ID">
+                  {customFormats.length === 0 && (
+                    <button className="format-option empty" disabled type="button">
+                      {isInspecting ? "Loading formats" : "No formats"}
+                    </button>
+                  )}
+                  {customFormats.map((format) => (
+                    <button
+                      aria-selected={format.id === formatId}
+                      className={`format-option ${format.id === formatId ? "selected" : ""}`}
+                      key={`${format.id}-${format.ext}-${format.resolution}`}
+                      onClick={() => setFormatId(format.id)}
+                      role="option"
+                      type="button"
+                    >
+                      <span className="format-id">{format.id}</span>
+                      <span className="format-main">
+                        {format.resolution} {format.ext.toUpperCase()} {format.fps ? `${format.fps}fps` : ""}
+                      </span>
+                      <small>
+                        {formatCodec(format)}
+                        {format.filesize ? ` - ${formatBytes(format.filesize)}` : ""}
+                        {format.tbr ? ` - ${Math.round(format.tbr)}kbps` : ""}
+                      </small>
+                    </button>
+                  ))}
+                </div>
+                <label className="field-block compact">
+                  Manual ID
+                  <input value={formatId} onChange={(event) => setFormatId(event.target.value)} />
+                </label>
+              </div>
             )}
 
             {(preset === "mp3" || preset === "m4a" || preset === "opus" || preset === "flac" || preset === "wav") && (
@@ -555,7 +652,7 @@ export default function App() {
                   <div>
                     <h3>{job.title || job.url}</h3>
                     <p>
-                      {job.preset.toUpperCase()} · {job.outputPath || job.outputDir}
+                      {job.preset.toUpperCase()} - {job.outputPath || job.outputDir}
                     </p>
                   </div>
                 </div>

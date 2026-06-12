@@ -686,20 +686,20 @@ select:focus {
   min-height: 54px;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   border-radius: var(--radius);
-  padding: 8px 10px;
-  background: #f7faf9;
+  padding: 8px 12px;
+  background: #fafcfb;
 }
 
 .job-result.complete {
-  color: #0f5132;
-  background: #edf8f1;
+  color: var(--green);
+  background: #f3fbf6;
 }
 
 .job-result.failed {
-  color: #7f1d1d;
-  background: #fff1f1;
+  color: var(--red);
+  background: #fff5f4;
 }
 
 .job-result strong,
@@ -721,55 +721,13 @@ select:focus {
 }
 
 .result-symbol {
-  position: relative;
   flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
   transform-origin: center;
-  animation: result-pop 520ms cubic-bezier(0.2, 1.45, 0.34, 1) both;
-}
-
-.job-result.complete .result-symbol {
-  background: var(--green);
-  box-shadow: 0 10px 24px rgba(23, 114, 69, 0.26);
-}
-
-.job-result.complete .result-symbol::before {
-  content: "";
-  position: absolute;
-  left: 12px;
-  top: 9px;
-  width: 11px;
-  height: 18px;
-  border: solid #ffffff;
-  border-width: 0 4px 4px 0;
-  transform: rotate(45deg);
-}
-
-.job-result.failed .result-symbol {
-  background: var(--red);
-  box-shadow: 0 10px 24px rgba(194, 65, 58, 0.25);
-}
-
-.job-result.failed .result-symbol::before,
-.job-result.failed .result-symbol::after {
-  content: "";
-  position: absolute;
-  left: 10px;
-  top: 17px;
-  width: 18px;
-  height: 4px;
-  border-radius: 999px;
-  background: #ffffff;
-}
-
-.job-result.failed .result-symbol::before {
-  transform: rotate(45deg);
-}
-
-.job-result.failed .result-symbol::after {
-  transform: rotate(-45deg);
+  animation: result-pop 420ms cubic-bezier(0.2, 1.35, 0.34, 1) both;
 }
 
 .job-actions {

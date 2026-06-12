@@ -1,6 +1,7 @@
 import {
   AlertCircle,
   BadgeCheck,
+  Check,
   Clock3,
   Download,
   ExternalLink,
@@ -20,6 +21,7 @@ import {
   ShieldCheck,
   Square,
   Subtitles,
+  X,
   Zap
 } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -681,7 +683,9 @@ export default function App() {
 
                 {isFinished ? (
                   <div className={`job-result ${isComplete ? "complete" : "failed"}`} role="status">
-                    <span className="result-symbol" aria-hidden="true" />
+                    <span className="result-symbol" aria-hidden="true">
+                      {isComplete ? <Check size={34} strokeWidth={2.6} /> : <X size={32} strokeWidth={2.7} />}
+                    </span>
                     <div>
                       <strong>{resultLabel}</strong>
                       <small>{isComplete ? "Saved to folder" : "Stopped"}</small>

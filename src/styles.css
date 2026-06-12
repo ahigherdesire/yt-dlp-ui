@@ -723,9 +723,11 @@ select:focus {
 }
 
 .extension-path {
+  max-width: 100%;
   min-height: 46px;
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -807,6 +809,10 @@ code {
   .extension-link,
   .primary-button,
   .secondary-button {
+    width: 100%;
+  }
+
+  .extension-path {
     width: 100%;
   }
 

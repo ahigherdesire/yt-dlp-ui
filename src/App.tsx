@@ -389,9 +389,9 @@ export default function App() {
             <p className="eyebrow">Local capture console</p>
             <h1>Download, clip, and convert media.</h1>
           </div>
-          <button className="extension-link" onClick={openExtensionFolder} type="button">
-            <Puzzle size={17} /> Chrome extension
-          </button>
+          <a className="extension-link" download href={apiUrl("/api/extension.zip")}>
+            <Download size={17} /> Download extension
+          </a>
         </header>
 
         {error && (
@@ -688,6 +688,9 @@ export default function App() {
           <div className="extension-path">
             <Puzzle size={20} />
             <code>extension/</code>
+            <a className="secondary-button" download href={apiUrl("/api/extension.zip")}>
+              <Download size={17} /> Download ZIP
+            </a>
             <button className="secondary-button" onClick={openExtensionFolder} type="button">
               <FolderOpen size={17} /> Open folder
             </button>

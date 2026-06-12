@@ -15,6 +15,7 @@ const port = Number(process.env.PORT || 5179);
 const ytdlpBin = process.env.YTDLP_PATH || "yt-dlp";
 const defaultOutputDir = path.join(os.homedir(), "Downloads", "yt-dlp-ui");
 const extensionDir = path.resolve(__dirname, "..", "extension");
+const extensionZipName = "ydl-studio-capture-extension.zip";
 const tempRootDir = path.join(os.tmpdir(), "yt-dlp-ui");
 const jobs = new Map();
 
@@ -147,6 +148,7 @@ function createJob(payload) {
     preset: payload.preset,
     outputDir: payload.outputDir,
     tempDir: payload.tempDir,
+    signature: payload.signature,
     outputPath: "",
     error: "",
     logs: [],
@@ -157,6 +159,20 @@ function createJob(payload) {
   };
   jobs.set(job.id, job);
   return job;
+}
+
+function getDownloadSignature(url, outputDir) {
+  return `${url}\n${path.resolve(outputDir).toLowerCase()}`;
+}
+
+function findActiveDuplicate(signature) {
+  for (const job of jobs.values()) {
+    if (job.signature === signature && ["queued", "running"].includes(job.status)) {
+      return job;
+    }
+  }
+
+  return null;
 }
 
 function publicJob(job) {
@@ -184,6 +200,105 @@ function cleanupTempDir(job) {
   }
 
   fs.rm(job.tempDir, { recursive: true, force: true }, () => undefined);
+}
+
+const crcTable = new Uint32Array(256);
+for (let index = 0; index < crcTable.length; index += 1) {
+  let value = index;
+  for (let bit = 0; bit < 8; bit += 1) {
+    value = value & 1 ? 0xedb88320 ^ (value >>> 1) : value >>> 1;
+  }
+  crcTable[index] = value >>> 0;
+}
+
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function getZipDateParts(date) {
+  const year = Math.max(1980, date.getFullYear());
+  return {
+    time: (date.getHours() << 11) | (date.getMinutes() << 5) | Math.floor(date.getSeconds() / 2),
+    date: ((year - 1980) << 9) | ((date.getMonth() + 1) << 5) | date.getDate()
+  };
+}
+
+function collectZipFiles(rootDir) {
+  return fs
+    .readdirSync(rootDir, { withFileTypes: true })
+    .flatMap((entry) => {
+      const fullPath = path.join(rootDir, entry.name);
+      if (entry.isDirectory()) {
+        return collectZipFiles(fullPath);
+      }
+
+      if (!entry.isFile()) {
+        return [];
+      }
+
+      return [fullPath];
+    })
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function buildZipFromDirectory(rootDir) {
+  const fileParts = [];
+  const centralParts = [];
+  let offset = 0;
+
+  for (const filePath of collectZipFiles(rootDir)) {
+    const stat = fs.statSync(filePath);
+    const data = fs.readFileSync(filePath);
+    const relativeName = path.relative(rootDir, filePath).replace(/\\/g, "/");
+    const name = Buffer.from(relativeName, "utf8");
+    const checksum = crc32(data);
+    const { time, date } = getZipDateParts(stat.mtime);
+
+    const localHeader = Buffer.alloc(30);
+    localHeader.writeUInt32LE(0x04034b50, 0);
+    localHeader.writeUInt16LE(20, 4);
+    localHeader.writeUInt16LE(0x0800, 6);
+    localHeader.writeUInt16LE(0, 8);
+    localHeader.writeUInt16LE(time, 10);
+    localHeader.writeUInt16LE(date, 12);
+    localHeader.writeUInt32LE(checksum, 14);
+    localHeader.writeUInt32LE(data.length, 18);
+    localHeader.writeUInt32LE(data.length, 22);
+    localHeader.writeUInt16LE(name.length, 26);
+
+    const centralHeader = Buffer.alloc(46);
+    centralHeader.writeUInt32LE(0x02014b50, 0);
+    centralHeader.writeUInt16LE(20, 4);
+    centralHeader.writeUInt16LE(20, 6);
+    centralHeader.writeUInt16LE(0x0800, 8);
+    centralHeader.writeUInt16LE(0, 10);
+    centralHeader.writeUInt16LE(time, 12);
+    centralHeader.writeUInt16LE(date, 14);
+    centralHeader.writeUInt32LE(checksum, 16);
+    centralHeader.writeUInt32LE(data.length, 20);
+    centralHeader.writeUInt32LE(data.length, 24);
+    centralHeader.writeUInt16LE(name.length, 28);
+    centralHeader.writeUInt32LE(offset, 42);
+
+    fileParts.push(localHeader, name, data);
+    centralParts.push(centralHeader, name);
+    offset += localHeader.length + name.length + data.length;
+  }
+
+  const centralSize = centralParts.reduce((sum, part) => sum + part.length, 0);
+  const endHeader = Buffer.alloc(22);
+  endHeader.writeUInt32LE(0x06054b50, 0);
+  endHeader.writeUInt16LE(centralParts.length / 2, 8);
+  endHeader.writeUInt16LE(centralParts.length / 2, 10);
+  endHeader.writeUInt32LE(centralSize, 12);
+  endHeader.writeUInt32LE(offset, 16);
+
+  return Buffer.concat([...fileParts, ...centralParts, endHeader]);
 }
 
 function emitJob(job, event = "job") {
@@ -338,6 +453,13 @@ app.post("/api/download", (req, res) => {
   try {
     const url = validateMediaUrl(req.body.url);
     const outputDir = normalizeOutputDir(req.body.outputDir);
+    const signature = getDownloadSignature(url, outputDir);
+    const duplicateJob = findActiveDuplicate(signature);
+    if (duplicateJob) {
+      res.status(202).json({ job: publicJob(duplicateJob), duplicate: true });
+      return;
+    }
+
     tempDir = path.join(tempRootDir, randomUUID());
     fs.mkdirSync(tempDir, { recursive: true });
     const args = buildDownloadArgs({ ...req.body, url }, outputDir, tempDir);
@@ -346,7 +468,8 @@ app.post("/api/download", (req, res) => {
       title: req.body.title,
       preset: req.body.preset || "mp4",
       outputDir,
-      tempDir
+      tempDir,
+      signature
     });
 
     updateJob(job, { status: "running" });
@@ -427,6 +550,19 @@ app.post("/api/jobs/:id/cancel", (req, res) => {
   }
 
   res.json({ job: publicJob(job) });
+});
+
+app.get("/api/extension.zip", (_req, res) => {
+  try {
+    const archive = buildZipFromDirectory(extensionDir);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Length", archive.length);
+    res.setHeader("Content-Disposition", `attachment; filename="${extensionZipName}"`);
+    res.setHeader("Cache-Control", "no-store");
+    res.send(archive);
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Could not package the extension." });
+  }
 });
 
 app.post("/api/open-folder", (req, res) => {

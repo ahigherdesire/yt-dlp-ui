@@ -149,6 +149,7 @@ function createJob(payload) {
     outputDir: payload.outputDir,
     tempDir: payload.tempDir,
     signature: payload.signature,
+    hiddenFromQueue: false,
     outputPath: "",
     error: "",
     logs: [],
@@ -189,6 +190,7 @@ function publicJob(job) {
     outputPath: job.outputPath,
     error: job.error,
     logs: job.logs.slice(-20),
+    hiddenFromQueue: Boolean(job.hiddenFromQueue),
     createdAt: job.createdAt,
     updatedAt: job.updatedAt
   };
@@ -444,6 +446,15 @@ app.post("/api/metadata", async (req, res) => {
 app.get("/api/jobs", (_req, res) => {
   res.json({
     jobs: Array.from(jobs.values())
+      .filter((job) => !job.hiddenFromQueue)
+      .map(publicJob)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  });
+});
+
+app.get("/api/history", (_req, res) => {
+  res.json({
+    jobs: Array.from(jobs.values())
       .map(publicJob)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   });
@@ -566,7 +577,8 @@ app.delete("/api/jobs/:id", (req, res) => {
   }
 
   cleanupTempDir(job);
-  jobs.delete(job.id);
+  job.hiddenFromQueue = true;
+  job.updatedAt = new Date().toISOString();
   for (const client of job.clients) {
     client.write("event: removed\n");
     client.write(`data: ${JSON.stringify({ id: job.id })}\n\n`);

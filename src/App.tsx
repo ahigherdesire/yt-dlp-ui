@@ -63,6 +63,7 @@ type Job = {
   outputPath: string;
   error: string;
   logs: string[];
+  hiddenFromQueue?: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -85,9 +86,22 @@ const presets = [
 ] as const;
 
 const apiBase = import.meta.env.VITE_API_BASE || "";
+type AppView = "download" | "queue" | "history" | "extension";
+
+const viewCopy: Record<AppView, { eyebrow: string; title: string }> = {
+  download: { eyebrow: "Local capture console", title: "Download, clip, and convert media." },
+  queue: { eyebrow: "Active workspace", title: "Current download queue." },
+  history: { eyebrow: "Download archive", title: "History and completed jobs." },
+  extension: { eyebrow: "Browser capture", title: "Chrome extension setup." }
+};
 
 function apiUrl(path: string) {
   return `${apiBase}${path}`;
+}
+
+function getViewFromHash(): AppView {
+  const view = window.location.hash.replace("#", "") as AppView;
+  return ["download", "queue", "history", "extension"].includes(view) ? view : "download";
 }
 
 function formatDuration(seconds: number | null) {
@@ -109,6 +123,16 @@ function formatBytes(bytes: number | null) {
     unitIndex += 1;
   }
   return `${value.toFixed(value > 100 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatDateTime(value: string) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).format(new Date(value));
 }
 
 function getValidMediaUrl(value: string) {
@@ -182,13 +206,30 @@ export default function App() {
   const [audioQuality, setAudioQuality] = useState("0");
   const [isInspecting, setIsInspecting] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [isOpeningFolder, setIsOpeningFolder] = useState(false);
   const [error, setError] = useState("");
+  const [folderStatus, setFolderStatus] = useState("");
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [historyJobs, setHistoryJobs] = useState<Job[]>([]);
+  const [activeView, setActiveView] = useState<AppView>(getViewFromHash);
   const inspectRequestRef = useRef(0);
   const lastInspectedUrlRef = useRef("");
+  const folderStatusTimerRef = useRef<number | null>(null);
 
   const upsertJob = (job: Job) => {
     setJobs((current) => {
+      if (job.hiddenFromQueue) {
+        return current.filter((item) => item.id !== job.id);
+      }
+
+      const existing = current.find((item) => item.id === job.id);
+      const mergedJob = existing
+        ? { ...job, progress: job.status === "complete" ? 100 : Math.max(existing.progress || 0, job.progress || 0) }
+        : job;
+      const next = current.filter((item) => item.id !== job.id);
+      return [mergedJob, ...next].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    });
+    setHistoryJobs((current) => {
       const existing = current.find((item) => item.id === job.id);
       const mergedJob = existing
         ? { ...job, progress: job.status === "complete" ? 100 : Math.max(existing.progress || 0, job.progress || 0) }
@@ -199,8 +240,16 @@ export default function App() {
   };
   const removeJobFromState = (jobId: string) => {
     setJobs((current) => current.filter((job) => job.id !== jobId));
+    setHistoryJobs((current) =>
+      current.map((job) => (job.id === jobId ? { ...job, hiddenFromQueue: true } : job))
+    );
   };
   const subscribeJob = useJobEvents(upsertJob, removeJobFromState);
+  const queueJobs = useMemo(() => jobs.slice(0, 5), [jobs]);
+  const hiddenQueueCount = Math.max(0, jobs.length - queueJobs.length);
+  const activeCount = jobs.filter((job) => job.status === "running" || job.status === "queued").length;
+  const completedCount = historyJobs.filter((job) => job.status === "complete").length;
+  const failedCount = historyJobs.filter((job) => job.status === "failed" || job.status === "cancelled").length;
 
   const videoFormats = useMemo(() => {
     return metadata?.formats.filter((format) => format.vcodec !== "none").slice(0, 50) || [];
@@ -274,6 +323,33 @@ export default function App() {
         data.jobs.filter((job) => job.status === "running").forEach((job) => subscribeJob(job.id));
       })
       .catch(() => undefined);
+
+    fetch(apiUrl("/api/history"))
+      .then((response) => response.json())
+      .then((data: { jobs: Job[] }) => {
+        setHistoryJobs(data.jobs);
+        data.jobs.filter((job) => job.status === "running").forEach((job) => subscribeJob(job.id));
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const syncView = () => setActiveView(getViewFromHash());
+    window.addEventListener("hashchange", syncView);
+    window.addEventListener("popstate", syncView);
+    syncView();
+    return () => {
+      window.removeEventListener("hashchange", syncView);
+      window.removeEventListener("popstate", syncView);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (folderStatusTimerRef.current) {
+        window.clearTimeout(folderStatusTimerRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -358,16 +434,112 @@ export default function App() {
     }
   }
 
-  async function openFolder(target = outputDir) {
-    await fetch(apiUrl("/api/open-folder"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ outputDir: target })
-    });
+  function showFolderStatus(message: string, persist = false) {
+    setFolderStatus(message);
+    if (folderStatusTimerRef.current) {
+      window.clearTimeout(folderStatusTimerRef.current);
+    }
+    if (!persist) {
+      folderStatusTimerRef.current = window.setTimeout(() => setFolderStatus(""), 2600);
+    }
+  }
+
+  async function openFolder(target = outputDir, options: { announce?: boolean } = {}) {
+    const announce = options.announce ?? false;
+    if (announce) {
+      setIsOpeningFolder(true);
+      showFolderStatus("Opening Downloads...", true);
+    }
+
+    try {
+      const response = await fetch(apiUrl("/api/open-folder"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ outputDir: target })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not open the folder.");
+      if (announce) showFolderStatus("Downloads folder opened.");
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Could not open the folder.";
+      if (announce) showFolderStatus(message, true);
+      setError(message);
+    } finally {
+      if (announce) setIsOpeningFolder(false);
+    }
   }
 
   async function openExtensionFolder() {
     await fetch(apiUrl("/api/open-extension-folder"), { method: "POST" });
+  }
+
+  function goToView(view: AppView) {
+    setActiveView(view);
+    if (window.location.hash !== `#${view}`) {
+      window.history.pushState(null, "", `#${view}`);
+    }
+  }
+
+  function renderJobCard(job: Job, options: { compact?: boolean; showRemove?: boolean } = {}) {
+    const isFinished = ["complete", "failed", "cancelled"].includes(job.status);
+    const isComplete = job.status === "complete";
+    const resultLabel = isComplete ? "Complete" : job.status === "cancelled" ? "Cancelled" : "Failed";
+
+    return (
+      <article className={`job-card ${isFinished ? "finished" : ""}`} key={job.id}>
+        <div className="job-main">
+          <div className={`status-dot ${job.status}`} />
+          <div>
+            <h3>{job.title || job.url}</h3>
+            <p>
+              {job.preset.toUpperCase()} - {job.outputPath || job.outputDir}
+            </p>
+            {!options.compact && <small className="job-time">{formatDateTime(job.createdAt)}</small>}
+          </div>
+        </div>
+
+        {isFinished ? (
+          <div className={`job-result ${isComplete ? "complete" : "failed"}`} role="status">
+            <span className="result-symbol" aria-hidden="true">
+              {isComplete ? <Check size={34} strokeWidth={2.6} /> : <X size={32} strokeWidth={2.7} />}
+            </span>
+            <div>
+              <strong>{resultLabel}</strong>
+              <small>{isComplete ? "Saved to folder" : "Stopped"}</small>
+            </div>
+          </div>
+        ) : (
+          <div className="job-progress">
+            <div className="bar">
+              <span style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} />
+            </div>
+            <div className="progress-meta">
+              <span className="loading-ring" aria-hidden="true" />
+              <small>
+                {job.status} {job.progress ? `${Math.round(job.progress)}%` : ""} {job.speed} {job.eta ? `ETA ${job.eta}` : ""}
+              </small>
+            </div>
+          </div>
+        )}
+
+        <div className="job-actions">
+          {job.status === "running" && (
+            <button className="icon-button" onClick={() => cancelJob(job.id)} title="Cancel" type="button">
+              <Square size={16} />
+            </button>
+          )}
+          {options.showRemove && isFinished && !job.hiddenFromQueue && (
+            <button className="icon-button remove-button" onClick={() => removeJob(job.id)} title="Remove from queue" type="button">
+              <span className="remove-mark" aria-hidden="true" />
+            </button>
+          )}
+          <button className="icon-button" onClick={() => openFolder(job.outputDir)} title="Open folder" type="button">
+            <FolderOpen size={16} />
+          </button>
+        </div>
+        {!options.compact && job.error && <pre className="job-error">{job.error}</pre>}
+      </article>
+    );
   }
 
   return (
@@ -384,14 +556,23 @@ export default function App() {
         </div>
 
         <nav className="sidebar-nav">
-          <a className="nav-item active" href="#download">
-            <Play size={17} /> Download
+          <a className={`nav-item ${activeView === "download" ? "active" : ""}`} href="#download" onClick={() => goToView("download")}>
+            <Play size={17} />
+            <span>Download</span>
           </a>
-          <a className="nav-item" href="#queue">
-            <ListVideo size={17} /> Queue
+          <a className={`nav-item ${activeView === "queue" ? "active" : ""}`} href="#queue" onClick={() => goToView("queue")}>
+            <ListVideo size={17} />
+            <span>Queue</span>
+            {jobs.length > 0 && <small>{jobs.length}</small>}
           </a>
-          <a className="nav-item" href="#extension">
-            <Puzzle size={17} /> Extension
+          <a className={`nav-item ${activeView === "history" ? "active" : ""}`} href="#history" onClick={() => goToView("history")}>
+            <Clock3 size={17} />
+            <span>History</span>
+            {historyJobs.length > 0 && <small>{historyJobs.length}</small>}
+          </a>
+          <a className={`nav-item ${activeView === "extension" ? "active" : ""}`} href="#extension" onClick={() => goToView("extension")}>
+            <Puzzle size={17} />
+            <span>Extension</span>
           </a>
         </nav>
 
@@ -400,21 +581,33 @@ export default function App() {
             <ShieldCheck size={17} />
             <span>{health?.ytdlpVersion ? `yt-dlp ${health.ytdlpVersion}` : "yt-dlp unavailable"}</span>
           </div>
-          <button className="ghost-button" onClick={() => openFolder()} type="button">
-            <FolderOpen size={16} /> Downloads
+          <button className="ghost-button" disabled={isOpeningFolder} onClick={() => openFolder(outputDir, { announce: true })} type="button">
+            {isOpeningFolder ? <Loader2 className="spin" size={16} /> : <FolderOpen size={16} />}
+            Downloads
           </button>
+          {folderStatus && <p className="folder-status" role="status">{folderStatus}</p>}
         </div>
       </aside>
 
       <main className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Local capture console</p>
-            <h1>Download, clip, and convert media.</h1>
+            <p className="eyebrow">{viewCopy[activeView].eyebrow}</p>
+            <h1>{viewCopy[activeView].title}</h1>
           </div>
-          <a className="extension-link" download href={apiUrl("/api/extension.zip")}>
-            <Download size={17} /> Download extension
-          </a>
+          {activeView === "extension" ? (
+            <a className="extension-link" download href={apiUrl("/api/extension.zip")}>
+              <Download size={17} /> Download extension
+            </a>
+          ) : activeView === "queue" ? (
+            <a className="extension-link" href="#history" onClick={() => goToView("history")}>
+              <Clock3 size={17} /> Full history
+            </a>
+          ) : (
+            <a className="extension-link" href="#queue" onClick={() => goToView("queue")}>
+              <ListVideo size={17} /> Queue
+            </a>
+          )}
         </header>
 
         {error && (
@@ -424,6 +617,7 @@ export default function App() {
           </div>
         )}
 
+        {activeView === "download" && (
         <section className="content-grid" id="download">
           <div className="control-panel">
             <form className="url-form" onSubmit={inspect}>
@@ -649,104 +843,130 @@ export default function App() {
             </div>
           </aside>
         </section>
+        )}
 
-        <section className="queue-section" id="queue">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Activity</p>
-              <h2>Download queue</h2>
-            </div>
-            <button className="secondary-button" onClick={() => openFolder()} type="button">
-              <FolderOpen size={17} /> Folder
-            </button>
-          </div>
-
-          <div className="job-list">
-            {jobs.length === 0 && (
-              <div className="empty-state">
-                <Download size={26} />
-                <span>No downloads yet.</span>
+        {activeView === "queue" && (
+          <section className="queue-section page-panel" id="queue">
+            <div className="metric-grid">
+              <div className="metric-item">
+                <span>Visible</span>
+                <strong>{Math.min(jobs.length, 5)}</strong>
               </div>
-            )}
-            {jobs.map((job) => {
-              const isFinished = ["complete", "failed", "cancelled"].includes(job.status);
-              const isComplete = job.status === "complete";
-              const resultLabel = isComplete ? "Complete" : job.status === "cancelled" ? "Cancelled" : "Failed";
+              <div className="metric-item">
+                <span>Active</span>
+                <strong>{activeCount}</strong>
+              </div>
+              <div className="metric-item">
+                <span>Hidden</span>
+                <strong>{hiddenQueueCount}</strong>
+              </div>
+            </div>
 
-              return (
-              <article className={`job-card ${isFinished ? "finished" : ""}`} key={job.id}>
-                <div className="job-main">
-                  <div className={`status-dot ${job.status}`} />
-                  <div>
-                    <h3>{job.title || job.url}</h3>
-                    <p>
-                      {job.preset.toUpperCase()} - {job.outputPath || job.outputDir}
-                    </p>
-                  </div>
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Latest five</p>
+                <h2>Download queue</h2>
+              </div>
+              <a className="secondary-button" href="#history" onClick={() => goToView("history")}>
+                <Clock3 size={17} /> History
+              </a>
+            </div>
+
+            <div className="job-list">
+              {queueJobs.length === 0 && (
+                <div className="empty-state">
+                  <Download size={26} />
+                  <span>No downloads yet.</span>
                 </div>
+              )}
+              {queueJobs.map((job) => renderJobCard(job, { compact: true, showRemove: true }))}
+            </div>
+          </section>
+        )}
 
-                {isFinished ? (
-                  <div className={`job-result ${isComplete ? "complete" : "failed"}`} role="status">
-                    <span className="result-symbol" aria-hidden="true">
-                      {isComplete ? <Check size={34} strokeWidth={2.6} /> : <X size={32} strokeWidth={2.7} />}
-                    </span>
-                    <div>
-                      <strong>{resultLabel}</strong>
-                      <small>{isComplete ? "Saved to folder" : "Stopped"}</small>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="job-progress">
-                    <div className="bar">
-                      <span style={{ width: `${Math.max(0, Math.min(100, job.progress))}%` }} />
-                    </div>
-                    <div className="progress-meta">
-                      <span className="loading-ring" aria-hidden="true" />
-                      <small>
-                        {job.status} {job.progress ? `${Math.round(job.progress)}%` : ""} {job.speed} {job.eta ? `ETA ${job.eta}` : ""}
-                      </small>
-                    </div>
-                  </div>
-                )}
+        {activeView === "history" && (
+          <section className="queue-section page-panel" id="history">
+            <div className="metric-grid">
+              <div className="metric-item">
+                <span>Total</span>
+                <strong>{historyJobs.length}</strong>
+              </div>
+              <div className="metric-item">
+                <span>Complete</span>
+                <strong>{completedCount}</strong>
+              </div>
+              <div className="metric-item">
+                <span>Stopped</span>
+                <strong>{failedCount}</strong>
+              </div>
+            </div>
 
-                <div className="job-actions">
-                  {job.status === "running" && (
-                    <button className="icon-button" onClick={() => cancelJob(job.id)} title="Cancel" type="button">
-                      <Square size={16} />
-                    </button>
-                  )}
-                  {isFinished && (
-                    <button className="icon-button remove-button" onClick={() => removeJob(job.id)} title="Remove from queue" type="button">
-                      <span className="remove-mark" aria-hidden="true" />
-                    </button>
-                  )}
-                  <button className="icon-button" onClick={() => openFolder(job.outputDir)} title="Open folder" type="button">
-                    <FolderOpen size={16} />
-                  </button>
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">All jobs</p>
+                <h2>Download history</h2>
+              </div>
+              <button className="secondary-button" onClick={() => openFolder()} type="button">
+                <FolderOpen size={17} /> Folder
+              </button>
+            </div>
+
+            <div className="job-list history-list">
+              {historyJobs.length === 0 && (
+                <div className="empty-state">
+                  <Clock3 size={26} />
+                  <span>No history yet.</span>
                 </div>
-                {job.error && <pre className="job-error">{job.error}</pre>}
-              </article>
-              );
-            })}
-          </div>
-        </section>
+              )}
+              {historyJobs.map((job) => renderJobCard(job, { showRemove: !job.hiddenFromQueue }))}
+            </div>
+          </section>
+        )}
 
-        <section className="extension-band" id="extension">
-          <div>
-            <p className="eyebrow">Browser capture</p>
-            <h2>Chrome extension included</h2>
-          </div>
-          <div className="extension-path">
-            <Puzzle size={20} />
-            <code>extension/</code>
-            <a className="secondary-button" download href={apiUrl("/api/extension.zip")}>
-              <Download size={17} /> Download ZIP
-            </a>
-            <button className="secondary-button" onClick={openExtensionFolder} type="button">
-              <FolderOpen size={17} /> Open folder
-            </button>
-          </div>
-        </section>
+        {activeView === "extension" && (
+          <section className="extension-page" id="extension">
+            <div className="extension-hero">
+              <div>
+                <p className="eyebrow">One-click capture</p>
+                <h2>Send the current tab into YDL Studio.</h2>
+                <p>
+                  Use the Chrome extension to choose MP4, MP3, M4A, Best, subtitles, or a timestamp section from the browser toolbar.
+                </p>
+              </div>
+              <div className="extension-actions">
+                <a className="primary-button large" download href={apiUrl("/api/extension.zip")}>
+                  <Download size={18} /> Download ZIP
+                </a>
+                <button className="secondary-button large" onClick={openExtensionFolder} type="button">
+                  <FolderOpen size={18} /> Open folder
+                </button>
+              </div>
+            </div>
+
+            <div className="setup-grid">
+              <div className="setup-step">
+                <span>1</span>
+                <h3>Open Chrome Extensions</h3>
+                <p>Go to <code>chrome://extensions</code> and enable Developer mode.</p>
+              </div>
+              <div className="setup-step">
+                <span>2</span>
+                <h3>Load The Folder</h3>
+                <p>Select the extracted extension folder from Downloads or this project.</p>
+              </div>
+              <div className="setup-step">
+                <span>3</span>
+                <h3>Capture Current Tab</h3>
+                <p>Keep YDL Studio running, click the toolbar button, choose a preset, and queue the download.</p>
+              </div>
+            </div>
+
+            <div className="extension-path">
+              <Puzzle size={20} />
+              <code>C:\Users\LIXINYUAN\Downloads\ydl-studio-capture-extension</code>
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

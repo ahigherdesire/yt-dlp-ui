@@ -7,7 +7,7 @@
     "default_title": "Download with YDL Studio",
     "default_popup": "popup.html"
   },
+  "options_page": "welcome.html",
   "permissions": ["activeTab", "storage", "tabs"],
   "host_permissions": ["http://127.0.0.1:5179/*", "http://localhost:5179/*"]
 }
-

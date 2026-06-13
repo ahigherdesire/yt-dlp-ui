@@ -56,7 +56,7 @@ label {
   gap: 6px;
   color: #344054;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 input {
@@ -86,7 +86,7 @@ button {
   background: #ffffff;
   color: #111827;
   font: inherit;
-  font-weight: 800;
+  font-weight: 650;
   cursor: pointer;
 }
 
@@ -121,4 +121,3 @@ p {
   min-height: 18px;
   margin: 0;
 }
-

@@ -1,0 +1,5 @@
+
+> yt-dlp-ui@0.1.0 start
+> node server/index.js
+
+YDL Studio API listening on http://127.0.0.1:5179

@@ -131,10 +131,34 @@ a {
   color: #344054;
 }
 
+.nav-item span {
+  min-width: 0;
+  flex: 1;
+}
+
+.nav-item small {
+  min-width: 24px;
+  height: 22px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0 7px;
+  color: var(--muted);
+  background: #ffffff;
+  font-size: 12px;
+}
+
 .nav-item.active {
   color: var(--teal-dark);
   background: #e8f4f2;
   font-weight: 500;
+}
+
+.nav-item.active small {
+  color: var(--teal-dark);
+  border-color: rgba(0, 109, 119, 0.18);
+  background: rgba(255, 255, 255, 0.68);
 }
 
 .system-panel {
@@ -152,6 +176,13 @@ a {
   align-items: center;
   gap: 8px;
   font-size: 13px;
+}
+
+.folder-status {
+  margin: -4px 2px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .workspace {
@@ -183,7 +214,7 @@ p {
 
 h1 {
   margin-bottom: 0;
-  font-size: clamp(26px, 3.5vw, 40px);
+  font-size: 38px;
   line-height: 1.12;
   letter-spacing: 0;
   font-weight: 600;
@@ -309,6 +340,11 @@ select:focus {
 .icon-button:hover {
   border-color: #b8c4cc;
   background: var(--surface-strong);
+}
+
+.ghost-button:disabled {
+  cursor: wait;
+  opacity: 0.74;
 }
 
 .large {
@@ -604,6 +640,37 @@ select:focus {
   margin-top: 18px;
 }
 
+.page-panel {
+  margin-top: 0;
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.metric-item {
+  min-height: 76px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #ffffff;
+  padding: 12px;
+  display: grid;
+  align-content: space-between;
+}
+
+.metric-item span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.metric-item strong {
+  font-size: 25px;
+  font-weight: 500;
+}
+
 .job-list {
   display: grid;
   gap: 10px;
@@ -640,6 +707,13 @@ select:focus {
 
 .job-main p {
   margin-bottom: 0;
+  font-size: 12px;
+}
+
+.job-time {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -849,6 +923,84 @@ select:focus {
   background: #ffffff;
 }
 
+.extension-page {
+  display: grid;
+  gap: 18px;
+}
+
+.extension-hero,
+.setup-step,
+.extension-page .extension-path {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: var(--shadow);
+}
+
+.extension-hero {
+  min-height: 186px;
+  padding: clamp(18px, 3vw, 28px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+}
+
+.extension-hero h2 {
+  margin-bottom: 10px;
+  font-size: 32px;
+}
+
+.extension-hero p {
+  max-width: 680px;
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.extension-actions {
+  display: grid;
+  gap: 10px;
+  min-width: 190px;
+}
+
+.setup-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.setup-step {
+  min-height: 162px;
+  padding: 16px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+}
+
+.setup-step span {
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(0, 109, 119, 0.18);
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: var(--teal-dark);
+  background: #e8f4f2;
+}
+
+.setup-step h3 {
+  margin-bottom: 0;
+}
+
+.setup-step p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.extension-page .extension-path {
+  padding: 13px 14px;
+}
+
 code {
   font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   font-size: 13px;
@@ -909,6 +1061,11 @@ code {
     grid-template-columns: 1fr;
   }
 
+  .extension-hero,
+  .setup-grid {
+    grid-template-columns: 1fr;
+  }
+
   .job-card {
     grid-template-columns: 1fr;
   }
@@ -919,6 +1076,14 @@ code {
 }
 
 @media (max-width: 640px) {
+  h1 {
+    font-size: 28px;
+  }
+
+  .extension-hero h2 {
+    font-size: 25px;
+  }
+
   .workspace {
     padding: 20px 14px 32px;
   }
@@ -933,7 +1098,8 @@ code {
   .sidebar-nav,
   .preset-grid,
   .split-controls,
-  .range-grid {
+  .range-grid,
+  .metric-grid {
     grid-template-columns: 1fr;
   }
 

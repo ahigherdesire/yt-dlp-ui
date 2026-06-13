@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>YDL Studio Capture Setup</title>
+    <link rel="stylesheet" href="welcome.css" />
+  </head>
+  <body>
+    <aside>
+      <div class="brand">
+        <div class="mark">Y</div>
+        <div>
+          <strong>YDL Studio</strong>
+          <span>Capture extension</span>
+        </div>
+      </div>
+
+      <nav aria-label="Setup sections">
+        <a href="#install">Install</a>
+        <a href="#workflow">Workflow</a>
+        <a href="#troubleshoot">Checks</a>
+      </nav>
+    </aside>
+
+    <main>
+      <section class="hero" id="install">
+        <p class="eyebrow">Chrome extension setup</p>
+        <h1>Capture the current tab and queue it in YDL Studio.</h1>
+        <p>
+          Keep the local app running, choose a format from the toolbar popup, and send videos or audio into your download queue without copying links manually.
+        </p>
+        <div class="actions">
+          <button id="openApp" type="button">Open YDL Studio</button>
+          <a href="chrome://extensions">Open extensions</a>
+        </div>
+      </section>
+
+      <section class="steps" id="workflow" aria-label="Workflow">
+        <article>
+          <span>01</span>
+          <h2>Load the folder</h2>
+          <p>Open <code>chrome://extensions</code>, turn on Developer mode, and choose the extracted extension folder.</p>
+        </article>
+        <article>
+          <span>02</span>
+          <h2>Pin the button</h2>
+          <p>Pin YDL Studio Capture to the Chrome toolbar so it is always one click away.</p>
+        </article>
+        <article>
+          <span>03</span>
+          <h2>Queue downloads</h2>
+          <p>Open a supported media page, select MP4, MP3, M4A, or Best, then start the download.</p>
+        </article>
+      </section>
+
+      <section class="checklist" id="troubleshoot">
+        <div>
+          <p class="eyebrow">Production checks</p>
+          <h2>Before using the extension</h2>
+        </div>
+        <ul>
+          <li>YDL Studio is open at <code>http://127.0.0.1:5179</code>.</li>
+          <li>The extension has permission to read the current tab URL.</li>
+          <li>The media page is public or already signed in inside Chrome.</li>
+        </ul>
+      </section>
+    </main>
+    <script src="welcome.js"></script>
+  </body>
+</html>

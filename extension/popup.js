@@ -47,6 +47,10 @@ document.querySelector("#openApp").addEventListener("click", () => {
   chrome.tabs.create({ url: `${apiBase}/?url=${encodeURIComponent(currentUrl)}` });
 });
 
+document.querySelector("#guide").addEventListener("click", () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL("welcome.html") });
+});
+
 document.querySelector("#download").addEventListener("click", async () => {
   setMessage("Starting...");
   try {
@@ -71,4 +75,3 @@ document.querySelector("#download").addEventListener("click", async () => {
 });
 
 checkService();
-

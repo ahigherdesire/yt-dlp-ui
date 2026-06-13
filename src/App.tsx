@@ -206,6 +206,7 @@ export default function App() {
   const [audioQuality, setAudioQuality] = useState("0");
   const [isInspecting, setIsInspecting] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
+  const [isStartLocked, setIsStartLocked] = useState(false);
   const [isOpeningFolder, setIsOpeningFolder] = useState(false);
   const [error, setError] = useState("");
   const [folderStatus, setFolderStatus] = useState("");
@@ -214,6 +215,9 @@ export default function App() {
   const [activeView, setActiveView] = useState<AppView>(getViewFromHash);
   const inspectRequestRef = useRef(0);
   const lastInspectedUrlRef = useRef("");
+  const startButtonRef = useRef<HTMLButtonElement | null>(null);
+  const startLockRef = useRef(false);
+  const startUnlockTimerRef = useRef<number | null>(null);
   const folderStatusTimerRef = useRef<number | null>(null);
 
   const upsertJob = (job: Job) => {
@@ -246,6 +250,7 @@ export default function App() {
   };
   const subscribeJob = useJobEvents(upsertJob, removeJobFromState);
   const queueJobs = useMemo(() => jobs.slice(0, 5), [jobs]);
+  const recentQueueJobs = useMemo(() => jobs.slice(0, 3), [jobs]);
   const hiddenQueueCount = Math.max(0, jobs.length - queueJobs.length);
   const activeCount = jobs.filter((job) => job.status === "running" || job.status === "queued").length;
   const completedCount = historyJobs.filter((job) => job.status === "complete").length;
@@ -346,6 +351,9 @@ export default function App() {
 
   useEffect(() => {
     return () => {
+      if (startUnlockTimerRef.current) {
+        window.clearTimeout(startUnlockTimerRef.current);
+      }
       if (folderStatusTimerRef.current) {
         window.clearTimeout(folderStatusTimerRef.current);
       }
@@ -385,8 +393,13 @@ export default function App() {
   }
 
   async function startDownload() {
+    if (startLockRef.current || !url) return;
+
+    startLockRef.current = true;
+    setIsStartLocked(true);
     setError("");
     setIsStarting(true);
+    startButtonRef.current?.blur();
 
     try {
       const response = await fetch(apiUrl("/api/download"), {
@@ -416,6 +429,13 @@ export default function App() {
       setError(caught instanceof Error ? caught.message : "Could not start the download.");
     } finally {
       setIsStarting(false);
+      if (startUnlockTimerRef.current) {
+        window.clearTimeout(startUnlockTimerRef.current);
+      }
+      startUnlockTimerRef.current = window.setTimeout(() => {
+        startLockRef.current = false;
+        setIsStartLocked(false);
+      }, 1100);
     }
   }
 
@@ -618,6 +638,7 @@ export default function App() {
         )}
 
         {activeView === "download" && (
+          <>
         <section className="content-grid" id="download">
           <div className="control-panel">
             <form className="url-form" onSubmit={inspect}>
@@ -804,7 +825,14 @@ export default function App() {
             </div>
 
             <div className="action-row">
-              <button className="primary-button large" disabled={!url || isStarting} onClick={startDownload} type="button">
+              <button
+                aria-busy={isStarting}
+                className={`primary-button large start-button ${isStartLocked ? "is-locked" : ""}`}
+                disabled={!url || isStartLocked}
+                onClick={startDownload}
+                ref={startButtonRef}
+                type="button"
+              >
                 {isStarting ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
                 Start download
               </button>
@@ -843,6 +871,28 @@ export default function App() {
             </div>
           </aside>
         </section>
+            <section className="queue-section recent-queue" aria-label="Recent download queue">
+              <div className="section-heading">
+                <div>
+                  <p className="eyebrow">Latest three</p>
+                  <h2>Recent queue</h2>
+                </div>
+                <a className="secondary-button" href="#queue" onClick={() => goToView("queue")}>
+                  <ListVideo size={17} /> Queue
+                </a>
+              </div>
+
+              <div className="job-list">
+                {recentQueueJobs.length === 0 && (
+                  <div className="empty-state">
+                    <Download size={26} />
+                    <span>No downloads yet.</span>
+                  </div>
+                )}
+                {recentQueueJobs.map((job) => renderJobCard(job, { compact: true, showRemove: true }))}
+              </div>
+            </section>
+          </>
         )}
 
         {activeView === "queue" && (

@@ -323,6 +323,24 @@ select:focus {
   background: var(--teal-dark);
 }
 
+.start-button {
+  transition:
+    filter 160ms ease,
+    opacity 160ms ease,
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.start-button.is-locked {
+  filter: blur(0.45px) saturate(0.82);
+  opacity: 0.58;
+  transform: scale(0.99);
+}
+
+.start-button.is-locked:hover {
+  background: var(--teal);
+}
+
 .secondary-button,
 .ghost-button,
 .extension-link,
@@ -637,6 +655,10 @@ select:focus {
 }
 
 .queue-section {
+  margin-top: 18px;
+}
+
+.recent-queue {
   margin-top: 18px;
 }
 
